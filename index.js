@@ -25,24 +25,11 @@
 
 // Firstly use require() to include modules
 
-const replaceTemplate = (temp, product) => {
-	let output = temp.replace(/{%PRODUCTNAME%}/g, product.productName)
-	output = output.replace(/{%IMAGE%}/g, product.image)
-	output = output.replace(/{%ID%}/g, product.id)
-	output = output.replace(/{%NUTRIENTS%}/g, product.nutrients)
-	output = output.replace(/{%QUANTITY%}/g, product.quantity)
-	output = output.replace(/{%PRICE%}/g, product.price)
-	output = output.replace(/{%DESCRIPTION%}/g, product.description)
-	output = output.replace(/{%FROM%}/g, product.from)
-
-	if (!product.organic)
-		output = output.replace(/{%NOT_ORGANIC%}/g, 'not-organic')
-	return output
-}
-
 const fs = require('fs') // this file system
 const http = require('http')
 const url = require('url')
+const slugify = require('slugify')
+const replaceTemplate = require('./modules/replaceTemplate')
 
 // SERVER
 const tempOverview = fs.readFileSync(
@@ -64,11 +51,14 @@ const data = fs.readFileSync(`${__dirname}/dev-data/data.json`, 'utf-8') // appl
 // 2) parse the data into an object (probably can do that in one move)
 const dataObj = JSON.parse(data)
 
+const slugs = dataObj.map((el) => slugify(el.productName, { lower: true }))
+
 // 3) create a server variable
 const server = http.createServer((req, res) => {
-	const pathName = req.url
+	const { query, pathname } = url.parse(req.url, true)
+
 	// OVERVIEW PAGE
-	if (pathName === '/' || pathName === '/overview') {
+	if (pathname === '/' || pathname === '/overview') {
 		res.writeHead(200, { 'Content-type': 'text/html' })
 
 		const cardsHtml = dataObj.map((m) => replaceTemplate(tempCard, m)).join('')
@@ -76,11 +66,15 @@ const server = http.createServer((req, res) => {
 
 		res.end(output) // end the response process with whatever is argument
 		// PRODUCT PAGE
-	} else if (pathName === '/product') {
-		res.end('This is the product')
+	} else if (pathname === '/product') {
+		res.writeHead(200, { 'Content-type': 'text/html' })
+
+		const product = dataObj[query.id]
+		const output = replaceTemplate(tempProduct, product)
+		res.end(output)
 
 		//API PAGE
-	} else if (pathName === '/api') {
+	} else if (pathname === '/api') {
 		res.writeHead(200, { 'Content-type': 'application/json' }) // sends a response header to the request. the status code first followed by the content type (html)
 		res.end(data)
 
@@ -90,7 +84,7 @@ const server = http.createServer((req, res) => {
 			'Content-type': 'text/html',
 			'my-own-whatever': 'Yhaaaas-queen',
 		})
-		res.end('<h1>Page not found!</h1>')
+		res.end('<h1>Page not found you dickhead!</h1>')
 	}
 })
 
